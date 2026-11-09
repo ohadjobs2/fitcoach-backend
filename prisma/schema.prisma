@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  password        String
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  // נתוני פיזיולוגיה ופרופיל למחולל ה-AI
+  age             Int?
+  gender          String?
+  height          Float?
+  weight          Float?
+  fitnessGoal     String?          // למשל: 'מסה', 'חיטוב'
+  muscleFocus     String?          // למשל: 'חזה ויד אחורית', 'רגליים'
+  workoutsPerWeek Int?             // כמה ימים המשתמש מוכן להתחייב
+  name            String?
+  // יעדי תזונה
+  targetCalories  Int              @default(2500)
+  targetProtein   Int              @default(150)
+  targetCarbs     Int              @default(300)
+  targetFats      Int              @default(80)
+  progressLogs ProgressLog[]
+  programs        Program[]
+  workouts        Workout[]
+  dailyLogs       DailyNutrition[]
+  createdAt       DateTime         @default(now())
+}
+
+// המודל החדש לתוכניות (מכיל את כל האימונים תחת אותה תוכנית)
+model Program {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  isAi        Boolean   @default(false) // מסמן אם התוכנית נוצרה על ידי בינה מלאכותית
+  userId      String
+  weeklyPlan  Json?
+  user        User      @relation(fields: [userId], references: [id])
+  workouts    Workout[]
+  createdAt   DateTime  @default(now())
+}
+
+model Workout {
+  id        String     @id @default(uuid())
+  name      String
+  date      DateTime   @default(now())
+  dayOfWeek Int?
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  
+  // קישור לתוכנית (אופציונלי - כי אפשר לעשות גם אימון חופשי מחוץ לתוכנית)
+  programId String?
+  program   Program?   @relation(fields: [programId], references: [id])
+  
+  exercises Exercise[]
+  createdAt DateTime   @default(now())
+}
+
+model Exercise {
+  id          String   @id @default(uuid())
+  name        String
+  muscleGroup String?
+  isCustom    Boolean  @default(false)
+  
+  workoutId   String
+  workout     Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  
+  sets        Set[]
+}
+
+model Set {
+  id         String   @id @default(uuid())
+  reps       Int
+  weight     Float
+  
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+}
+
+model DailyNutrition {
+  id             String   @id @default(uuid())
+  date           DateTime @default(now())
+  
+  totalCalories  Int      @default(0)
+  totalProtein   Int      @default(0)
+  totalCarbs     Int      @default(0)
+  totalFats      Int      @default(0)
+  totalFiber     Int      @default(0)
+  
+  targetCalories Int      @default(2500)
+  targetProtein  Int      @default(150)
+  targetCarbs    Int      @default(300)
+  targetFats     Int      @default(80)
+  
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  meals          Meal[]
+}
+
+model Meal {
+  id               String         @id @default(uuid())
+  name             String
+  description      String?
+  calories         Int
+  protein          Int
+  carbs            Int
+  fats             Int
+  fiber            Int
+  
+  dailyNutritionId String?
+  dailyNutrition   DailyNutrition? @relation(fields: [dailyNutritionId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+}
+model ProgressLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  exercise  String   // שם התרגיל (למשל "סקוואט חופשי")
+  weight    Float    // המשקל שהורם
+  date      DateTime @default(now())
+}
